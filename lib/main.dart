@@ -5,6 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'common/constants/constant.dart';
 import 'common/router/router.dart';
 import 'data/providers/theme_provider.dart';
+import 'data/providers/employee_provider.dart';
+import 'data/providers/attendance_provider.dart';
+import 'data/providers/leave_provider.dart';
+import 'data/providers/sync_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +31,16 @@ class _MyAppState extends State<MyApp> {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(
+          create: (_) => EmployeeProvider()..loadEmployee(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => AttendanceProvider()..loadDashboardAttendance(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => LeaveProvider()..loadLeaveData(),
+        ),
+        ChangeNotifierProvider(create: (_) => SyncProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
