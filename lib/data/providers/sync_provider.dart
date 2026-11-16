@@ -66,16 +66,50 @@ class SyncProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> Function()? _autoSyncCallback;
+
+  void registerAutoSyncCallback(Future<void> Function() callback) {
+    _autoSyncCallback = callback;
+  }
+
+  void unregisterAutoSyncCallback() {
+    _autoSyncCallback = null;
+  }
+
+  void _triggerAutoSync() {
+    if (_autoSyncCallback != null && !_isSyncing) {
+      _isSyncing = true;
+      notifyListeners();
+      _autoSyncCallback!().then((_) {
+        _lastSyncTime = DateTime.now();
+        _lastSyncMessage = 'Auto-sync completed.';
+      }).catchError((e) {
+        _lastSyncMessage = 'Auto-sync failed: $e';
+      }).whenComplete(() {
+        _isSyncing = false;
+        notifyListeners();
+      });
+    }
+  }
+
   void _updateConnectivity(List<ConnectivityResult> results) {
     final hasNet = results.any((r) => r != ConnectivityResult.none);
+    final wasOffline = isOffline;
     if (_hasRealConnectivity != hasNet) {
       _hasRealConnectivity = hasNet;
       notifyListeners();
+      if (wasOffline && isOnline) {
+        _triggerAutoSync();
+      }
     }
   }
 
   void _onScenarioChanged() {
+    final wasOffline = isOffline;
     notifyListeners();
+    if (wasOffline && isOnline) {
+      _triggerAutoSync();
+    }
   }
 
   Future<SyncResult?> syncNow(AttendanceProvider attendanceProvider) async {

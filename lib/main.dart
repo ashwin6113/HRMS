@@ -47,7 +47,13 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider(
           create: (_) => LeaveProvider()..loadLeaveData(),
         ),
-        ChangeNotifierProvider(create: (_) => SyncProvider()),
+        ChangeNotifierProxyProvider<AttendanceProvider, SyncProvider>(
+          create: (_) => SyncProvider(),
+          update: (_, attendance, sync) {
+            sync?.registerAutoSyncCallback(() => attendance.syncPending());
+            return sync ?? SyncProvider();
+          },
+        ),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {

@@ -140,6 +140,16 @@ class AttendanceRepository {
           'rejected',
           rejectionReason: e.message,
         );
+        final today = event.timestamp.toIso8601String().substring(0, 10);
+        final existingRecord = await dbHelper.getTodayAttendanceRecord(today);
+        if (existingRecord != null && existingRecord.syncStatus == 'pending') {
+          await dbHelper.upsertAttendanceRecord(
+            existingRecord.copyWith(
+              syncStatus: 'rejected',
+              rejectionReason: e.message,
+            ),
+          );
+        }
         rejectedCount++;
       } catch (e) {
         // Temporary failure: increment retry count and keep in queue
