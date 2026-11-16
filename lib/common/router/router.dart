@@ -9,9 +9,11 @@ GoRouter getRouterConfig() {
   return GoRouter(
     navigatorKey: globalNavigatorKey,
     initialLocation: RouterPath.home,
-
     routes: [
-      GoRoute(path: RouterPath.splash, builder: (context, state) => const SplashScreen()),
+      GoRoute(
+        path: RouterPath.splash,
+        builder: (context, state) => const SplashScreen(),
+      ),
       _shellRoute,
     ],
     errorBuilder: (context, state) => Scaffold(
@@ -22,9 +24,13 @@ GoRouter getRouterConfig() {
           children: [
             const Icon(Icons.error_outline, size: 64, color: Colors.grey),
             const SizedBox(height: 16),
-            Text('Page not found: ${state.path}', style: const TextStyle(fontSize: 16)),
+            Text('Page not found: ${state.uri.path}',
+                style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: () => context.go(RouterPath.home), child: const Text('Go Home')),
+            ElevatedButton(
+              onPressed: () => context.go(RouterPath.home),
+              child: const Text('Go Home'),
+            ),
           ],
         ),
       ),
@@ -37,7 +43,21 @@ final _shellRoute = ShellRoute(
     return MainShellScreen(child: child);
   },
   routes: [
-    GoRoute(path: RouterPath.home, builder: (context, state) => const HomeScreen()),
-    GoRoute(path: RouterPath.profile, builder: (context, state) => const ProfileScreen()),
+    GoRoute(
+      path: RouterPath.home,
+      builder: (context, state) => const HomeScreen(),
+    ),
+    GoRoute(
+      path: RouterPath.search,
+      builder: (context, state) => const SearchScreen(),
+    ),
+    GoRoute(
+      path: RouterPath.calendar,
+      builder: (context, state) => const CalendarScreen(),
+    ),
+    GoRoute(
+      path: RouterPath.profile,
+      builder: (context, state) => const ProfileScreen(),
+    ),
   ],
 );

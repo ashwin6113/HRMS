@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hrms/common/constants/constant.dart';
 import 'package:hrms/widgets/bottom_navigation.dart';
 import 'package:hrms/common/router/router_path.dart';
 
@@ -11,11 +12,12 @@ class MainShellScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBody: true,
       body: child,
-      bottomNavigationBar: CustomBottomNavigation(
+      bottomNavigationBar: FloatingBottomNavigationBar(
         currentIndex: _calculateSelectedIndex(context),
         onTap: (index) => _onItemTapped(index, context),
-        items: BottomNavItems.defaultItems,
+        onAddPressed: () => _showQuickActionModal(context),
       ),
     );
   }
@@ -25,8 +27,14 @@ class MainShellScreen extends StatelessWidget {
     if (location.startsWith(RouterPath.home)) {
       return 0;
     }
-    if (location.startsWith(RouterPath.profile)) {
+    if (location.startsWith(RouterPath.search)) {
       return 1;
+    }
+    if (location.startsWith(RouterPath.calendar)) {
+      return 2;
+    }
+    if (location.startsWith(RouterPath.profile)) {
+      return 3;
     }
     return 0;
   }
@@ -37,8 +45,130 @@ class MainShellScreen extends StatelessWidget {
         context.go(RouterPath.home);
         break;
       case 1:
+        context.go(RouterPath.search);
+        break;
+      case 2:
+        context.go(RouterPath.calendar);
+        break;
+      case 3:
         context.go(RouterPath.profile);
         break;
     }
+  }
+
+  void _showQuickActionModal(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Quick Actions',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _QuickActionButton(
+                      icon: Icons.calendar_month_outlined,
+                      label: 'Apply Leave',
+                      color: AppColors.error,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        context.go(RouterPath.calendar);
+                      },
+                    ),
+                    _QuickActionButton(
+                      icon: Icons.how_to_reg_outlined,
+                      label: 'Check In',
+                      color: AppColors.success,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Checked In successfully!')),
+                        );
+                      },
+                    ),
+                    _QuickActionButton(
+                      icon: Icons.receipt_long_outlined,
+                      label: 'New Request',
+                      color: AppColors.warning,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        context.go(RouterPath.search);
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _QuickActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withValues(alpha: 0.12),
+            ),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
   }
 }

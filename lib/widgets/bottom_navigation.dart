@@ -1,59 +1,143 @@
 import 'package:flutter/material.dart';
 import '../common/constants/constant.dart';
 
-class CustomBottomNavigation extends StatelessWidget {
+class FloatingBottomNavigationBar extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
-  final List<BottomNavItem> items;
+  final VoidCallback? onAddPressed;
+  final Color? activeColor;
+  final Color? backgroundColor;
 
-  const CustomBottomNavigation({super.key, required this.currentIndex, required this.onTap, required this.items});
+  const FloatingBottomNavigationBar({
+    super.key,
+    required this.currentIndex,
+    required this.onTap,
+    this.onAddPressed,
+    this.activeColor,
+    this.backgroundColor,
+  });
+
+  static const List<IconData> defaultIcons = [
+    Icons.home_outlined,
+    Icons.people_alt_outlined,
+    Icons.calendar_month_outlined,
+    Icons.chat_bubble_outline_rounded,
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final bottomBarTheme = Theme.of(context).bottomNavigationBarTheme;
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 8),
-      width: double.infinity,
-      decoration: BoxDecoration(color: bottomBarTheme.backgroundColor, borderRadius: BorderRadius.circular(16)),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: items.asMap().entries.map((entry) {
-          final index = entry.key;
-          final item = entry.value;
-          final isSelected = index == currentIndex;
-          final iconColor = isSelected ? bottomBarTheme.selectedItemColor : bottomBarTheme.unselectedItemColor;
-          final labelStyle = isSelected ? bottomBarTheme.selectedLabelStyle : bottomBarTheme.unselectedLabelStyle;
-          final iconSize = 28.0;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final pillBg = backgroundColor ??
+        (isDarkMode ? AppColors.cardDark : Colors.white);
+    final effectiveActiveColor = activeColor ?? const Color(0xFF6C5CE7);
+    final unselectedColor =
+        isDarkMode ? AppColors.textTertiaryDark : const Color(0xFF9E9E9E);
 
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => onTap(index),
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(item.icon, color: iconColor, size: iconSize),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.label,
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: labelStyle?.copyWith(color: iconColor),
-                    ),
-                  ],
+    return Container(
+      color: Colors.transparent,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Row(
+            children: [
+              // 1. Separate White Pill Navigation Bar on the left
+              Expanded(
+                child: Container(
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: pillBg,
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(
+                          alpha: isDarkMode ? 0.3 : 0.08,
+                        ),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: List.generate(defaultIcons.length, (index) {
+                      final isSelected = index == currentIndex;
+                      final icon = defaultIcons[index];
+
+                      return Expanded(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => onTap(index),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  icon,
+                                  size: 26,
+                                  color: isSelected
+                                      ? effectiveActiveColor
+                                      : unselectedColor,
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  width: 4,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isSelected
+                                        ? effectiveActiveColor
+                                        : Colors.transparent,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
                 ),
               ),
-            ),
-          );
-        }).toList(),
+
+              const SizedBox(width: 12),
+
+              // 2. Separate Floating Action Button (+) on the right
+              GestureDetector(
+                onTap: onAddPressed,
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: effectiveActiveColor,
+                    boxShadow: [
+                      BoxShadow(
+                        color: effectiveActiveColor.withValues(alpha: 0.4),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.add,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
+// Keep standard bottom nav item model for compatibility
 class BottomNavItem {
   final IconData icon;
   final String label;
@@ -62,100 +146,37 @@ class BottomNavItem {
 }
 
 class BottomNavItems {
-  static const BottomNavItem home = BottomNavItem(icon: Icons.home_outlined, label: 'Home');
+  static const BottomNavItem home =
+      BottomNavItem(icon: Icons.home_outlined, label: 'Home');
+  static const BottomNavItem team =
+      BottomNavItem(icon: Icons.people_alt_outlined, label: 'Team');
+  static const BottomNavItem calendar =
+      BottomNavItem(icon: Icons.calendar_month_outlined, label: 'Calendar');
+  static const BottomNavItem chat =
+      BottomNavItem(icon: Icons.chat_bubble_outline_rounded, label: 'Chat');
 
-  static const BottomNavItem network = BottomNavItem(icon: Icons.person, label: 'Profile');
-
-  static List<BottomNavItem> get defaultItems => [home,network];
+  static List<BottomNavItem> get defaultItems => [home, team, calendar, chat];
 }
 
-class BadgedBottomNavigation extends StatelessWidget {
+class CustomBottomNavigation extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
-  final List<BadgedBottomNavItem> items;
+  final VoidCallback? onAddPressed;
 
-  const BadgedBottomNavigation({super.key, required this.currentIndex, required this.onTap, required this.items});
+  const CustomBottomNavigation({
+    super.key,
+    required this.currentIndex,
+    required this.onTap,
+    this.onAddPressed,
+    List<BottomNavItem>? items,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.red,
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, -2))],
-      ),
-      child: SafeArea(
-        child: Container(
-          height: 80,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: items.asMap().entries.map((entry) {
-              final index = entry.key;
-              final item = entry.value;
-              final isSelected = index == currentIndex;
-
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => onTap(index),
-                  behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent, borderRadius: BorderRadius.circular(12)),
-                              child: Icon(item.icon, color: isSelected ? AppColors.primary : (isDarkMode ? AppColors.textTertiaryDark : AppColors.textTertiaryLight), size: 24),
-                            ),
-                            if (item.badgeCount != null && item.badgeCount! > 0)
-                              Positioned(
-                                right: 0,
-                                top: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
-                                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                                  child: Text(
-                                    item.badgeCount! > 99 ? '99+' : '${item.badgeCount}',
-                                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item.label,
-                          style: AppTextStyles.labelSmall.copyWith(
-                            color: isSelected ? AppColors.primary : (isDarkMode ? AppColors.textTertiaryDark : AppColors.textTertiaryLight),
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ),
+    return FloatingBottomNavigationBar(
+      currentIndex: currentIndex,
+      onTap: onTap,
+      onAddPressed: onAddPressed,
     );
   }
-}
-
-class BadgedBottomNavItem extends BottomNavItem {
-  final int? badgeCount;
-
-  const BadgedBottomNavItem({required super.icon, required super.label, this.badgeCount});
 }

@@ -12,6 +12,9 @@ void main() {
     await tester.pumpWidget(const MyApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('HomeScreen'), findsOneWidget);
+    expect(find.text('Good Morning'), findsOneWidget);
+    expect(find.text('Please Choose Services'), findsOneWidget);
+    expect(find.text('Recent Leave Application'), findsOneWidget);
+    expect(find.text('Todays Attendance'), findsOneWidget);
   });
 }
