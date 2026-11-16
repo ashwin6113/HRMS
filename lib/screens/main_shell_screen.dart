@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+
 import 'package:hrms/common/constants/constant.dart';
 import 'package:hrms/widgets/bottom_navigation.dart';
 import 'package:hrms/common/router/router_path.dart';
+import 'package:hrms/data/providers/attendance_provider.dart';
+import 'package:hrms/data/providers/employee_provider.dart';
+import 'package:hrms/data/providers/sync_provider.dart';
 
 class MainShellScreen extends StatelessWidget {
   final Widget child;
@@ -105,11 +110,29 @@ class MainShellScreen extends StatelessWidget {
                         icon: Icons.how_to_reg_outlined,
                         label: 'Check In',
                         color: AppColors.success,
-                        onTap: () {
+                        onTap: () async {
                           Navigator.pop(ctx);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Checked In successfully!')),
-                          );
+                          final employee =
+                              context.read<EmployeeProvider>().employee!;
+                          final isOnline =
+                              context.read<SyncProvider>().isOnline;
+                          final result = await context
+                              .read<AttendanceProvider>()
+                              .performCheckIn(
+                                employee: employee,
+                                isOnline: isOnline,
+                              );
+
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(result.message),
+                                backgroundColor: result.success
+                                    ? AppColors.success
+                                    : AppColors.error,
+                              ),
+                            );
+                          }
                         },
                       ),
                       _QuickActionButton(

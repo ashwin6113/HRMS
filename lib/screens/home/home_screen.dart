@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../api/api.dart';
+import '../../../common/utils/location_service.dart';
 
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/employee_provider.dart';
@@ -618,6 +619,182 @@ class HomeScreen extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+
+          // Check-In / Check-Out Action Button
+          if (provider.isNotCheckedIn)
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.success,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 2,
+                ),
+                icon: provider.isProcessing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.touch_app_rounded, size: 20),
+                label: Text(
+                  provider.isProcessing
+                      ? 'Validating Location...'
+                      : 'Check In (Geofenced)',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                onPressed: provider.isProcessing
+                    ? null
+                    : () async {
+                        final employee =
+                            context.read<EmployeeProvider>().employee!;
+                        final isOnline = context.read<SyncProvider>().isOnline;
+                        final result = await provider.performCheckIn(
+                          employee: employee,
+                          isOnline: isOnline,
+                        );
+
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(result.message),
+                              backgroundColor: result.success
+                                  ? AppColors.success
+                                  : AppColors.error,
+                              action: result.geofenceResult?.canOpenSettings ==
+                                      true
+                                  ? SnackBarAction(
+                                      label: 'Settings',
+                                      textColor: Colors.white,
+                                      onPressed: () async {
+                                        final opened = await LocationService.instance
+                                            .openSettings();
+                                        if (!opened && context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                  'Could not open settings automatically. Please check device settings manually.'),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                    )
+                                  : null,
+                            ),
+                          );
+                        }
+                      },
+              ),
+            )
+          else if (provider.isCheckedIn)
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 2,
+                ),
+                icon: provider.isProcessing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.logout_rounded, size: 20),
+                label: Text(
+                  provider.isProcessing ? 'Processing...' : 'Check Out Now',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                onPressed: provider.isProcessing
+                    ? null
+                    : () async {
+                        final employee =
+                            context.read<EmployeeProvider>().employee!;
+                        final isOnline = context.read<SyncProvider>().isOnline;
+                        final result = await provider.performCheckOut(
+                          employee: employee,
+                          isOnline: isOnline,
+                        );
+
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(result.message),
+                              backgroundColor: result.success
+                                  ? const Color(0xFF4A80F0)
+                                  : AppColors.error,
+                              action: result.geofenceResult?.canOpenSettings ==
+                                      true
+                                  ? SnackBarAction(
+                                      label: 'Settings',
+                                      textColor: Colors.white,
+                                      onPressed: () async {
+                                        final opened = await LocationService.instance
+                                            .openSettings();
+                                        if (!opened && context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                  'Could not open settings automatically. Please check device settings manually.'),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                    )
+                                  : null,
+                            ),
+                          );
+                        }
+                      },
+              ),
+            )
+          else if (provider.isCheckedOut)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4A80F0).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.check_circle_rounded,
+                      color: Color(0xFF4A80F0), size: 18),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Attendance session completed for today.',
+                      style: TextStyle(
+                        color: Color(0xFF4A80F0),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -1166,6 +1343,75 @@ class HomeScreen extends StatelessWidget {
                         onChanged: (val) {
                           if (val != null) {
                             scenarioManager.setScenario(val);
+                            setModalState(() {});
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Location Simulation (Geofence):',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<LocationSimulationMode>(
+                        isExpanded: true,
+                        initialValue: LocationService.instance.simulationMode,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: LocationSimulationMode.atOffice,
+                            child: Text(
+                              'At Office Desk (0m — Geofence Valid)',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: LocationSimulationMode.outsideOffice,
+                            child: Text(
+                              'Outside Office (~550m — Geofence Blocked)',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: LocationSimulationMode.permissionDenied,
+                            child: Text(
+                              'Permission Denied',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value:
+                                LocationSimulationMode.permissionPermanentlyDenied,
+                            child: Text(
+                              'Permission Permanently Denied',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: LocationSimulationMode.servicesDisabled,
+                            child: Text(
+                              'GPS Services Disabled',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: LocationSimulationMode.realGps,
+                            child: Text(
+                              'Real Device GPS',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            LocationService.instance.setSimulationMode(val);
                             setModalState(() {});
                           }
                         },

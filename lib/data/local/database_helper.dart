@@ -1,5 +1,8 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../model/models.dart';
 
 class DatabaseHelper {
@@ -15,6 +18,11 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDB(String filePath) async {
+    if (!kIsWeb && (Platform.isMacOS || Platform.isLinux || Platform.isWindows)) {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
+
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import '../../api/mock_api_scenario.dart';
 import '../repo/attendance_repository.dart';
 import 'attendance_provider.dart';
@@ -36,28 +35,34 @@ class SyncProvider extends ChangeNotifier {
   bool get isOffline => !isOnline;
 
   Future<void> _initConnectivity() async {
+    bool isNativePluginAvailable = false;
+
     try {
       final results = await _connectivity.checkConnectivity();
       _updateConnectivity(results);
-    } on MissingPluginException {
-      // Platform channels not linked yet (e.g. during hot-reload after adding plugin)
+      isNativePluginAvailable = true;
+    } catch (e) {
+      // Platform channels not linked (e.g. desktop/simulator without full re-run/pod install)
+      debugPrint('Connectivity check unavailable or missing plugin: $e');
       _hasRealConnectivity = true;
-    } catch (_) {
-      _hasRealConnectivity = true;
+      isNativePluginAvailable = false;
     }
 
-    try {
-      _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
-        _updateConnectivity,
-        onError: (dynamic error) {
-          // Gracefully handle channel errors without crashing
-          _hasRealConnectivity = true;
-        },
-        cancelOnError: false,
-      );
-    } catch (_) {
-      // Platform stream not implemented on current platform or requires full rebuild
-      _hasRealConnectivity = true;
+    // Only subscribe to the platform stream if the native plugin check succeeded
+    if (isNativePluginAvailable) {
+      try {
+        _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
+          _updateConnectivity,
+          onError: (dynamic error) {
+            debugPrint('Connectivity stream error: $error');
+            _hasRealConnectivity = true;
+          },
+          cancelOnError: false,
+        );
+      } catch (e) {
+        debugPrint('Failed to subscribe to connectivity changes: $e');
+        _hasRealConnectivity = true;
+      }
     }
   }
 

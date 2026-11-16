@@ -1,16 +1,21 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
+
+import '../../common/utils/location_service.dart';
 import '../model/models.dart';
 import '../repo/attendance_repository.dart';
 
 class AttendanceProvider extends ChangeNotifier {
   final AttendanceRepository repository;
+  final Uuid _uuid = const Uuid();
 
   AttendanceRecord? _todayRecord;
   List<AttendanceRecord> _latestRecords = [];
   List<AttendanceEvent> _pendingEvents = [];
   bool _isLoading = false;
+  bool _isProcessing = false;
   String? _errorMessage;
 
   Timer? _durationTimer;
@@ -23,6 +28,7 @@ class AttendanceProvider extends ChangeNotifier {
   List<AttendanceRecord> get latestRecords => _latestRecords;
   List<AttendanceEvent> get pendingEvents => _pendingEvents;
   bool get isLoading => _isLoading;
+  bool get isProcessing => _isProcessing;
   String? get errorMessage => _errorMessage;
   Duration get elapsedDuration => _elapsedDuration;
 
@@ -107,6 +113,170 @@ class AttendanceProvider extends ChangeNotifier {
     }
   }
 
+  // ================= Geofenced Check-In =================
+  Future<AttendanceActionResult> performCheckIn({
+    required Employee employee,
+    required bool isOnline,
+    LocationService? locationService,
+  }) async {
+    // 1. Debounce / tap lock to prevent duplicate attendance events
+    if (_isProcessing) {
+      return const AttendanceActionResult(
+        success: false,
+        message: 'Action in progress, please wait...',
+      );
+    }
+
+    _isProcessing = true;
+    notifyListeners();
+
+    try {
+      // 2. Rule: Check-in allowed only once per working day
+      if (_todayRecord != null && _todayRecord!.checkInTime != null) {
+        return const AttendanceActionResult(
+          success: false,
+          message: 'You have already checked in for today.',
+        );
+      }
+
+      // 3. Rule: Check geofence within 200m of office coordinates
+      final loc = locationService ?? LocationService.instance;
+      final geofenceResult = await loc.checkGeofence(
+        officeLatitude: employee.officeLatitude,
+        officeLongitude: employee.officeLongitude,
+        allowedRadiusMeters: employee.geofenceRadiusMeters,
+      );
+
+      if (!geofenceResult.isWithinGeofence) {
+        return AttendanceActionResult(
+          success: false,
+          message: geofenceResult.errorMessage ??
+              'You are outside the permitted office attendance zone.',
+          geofenceResult: geofenceResult,
+        );
+      }
+
+      // 4. Create atomic event with unique client_event_id
+      final event = AttendanceEvent(
+        clientEventId: _uuid.v4(),
+        employeeId: employee.employeeId,
+        eventType: 'check_in',
+        timestamp: DateTime.now(),
+        latitude: geofenceResult.currentLatitude,
+        longitude: geofenceResult.currentLongitude,
+        createdAt: DateTime.now(),
+      );
+
+      // 5. Submit or queue offline
+      final record = await recordEvent(event, isOnline: isOnline);
+
+      return AttendanceActionResult(
+        success: true,
+        message: isOnline
+            ? 'Checked In successfully!'
+            : 'Checked In saved offline. Will sync when connection returns.',
+        record: record,
+        geofenceResult: geofenceResult,
+      );
+    } catch (e) {
+      return AttendanceActionResult(
+        success: false,
+        message: 'Check-In failed: $e',
+      );
+    } finally {
+      _isProcessing = false;
+      notifyListeners();
+    }
+  }
+
+  // ================= Geofenced Check-Out =================
+  Future<AttendanceActionResult> performCheckOut({
+    required Employee employee,
+    required bool isOnline,
+    LocationService? locationService,
+  }) async {
+    // 1. Debounce / tap lock
+    if (_isProcessing) {
+      return const AttendanceActionResult(
+        success: false,
+        message: 'Action in progress, please wait...',
+      );
+    }
+
+    _isProcessing = true;
+    notifyListeners();
+
+    try {
+      // 2. Rule: Check-out is permitted only after check-in
+      if (_todayRecord == null || _todayRecord!.checkInTime == null) {
+        return const AttendanceActionResult(
+          success: false,
+          message: 'Cannot check out without an active check-in for today.',
+        );
+      }
+
+      // 3. Rule: Already checked out
+      if (_todayRecord!.checkOutTime != null) {
+        return const AttendanceActionResult(
+          success: false,
+          message: 'You have already checked out for today.',
+        );
+      }
+
+      // 4. Rule: Check geofence within 200m of office coordinates
+      final loc = locationService ?? LocationService.instance;
+      final geofenceResult = await loc.checkGeofence(
+        officeLatitude: employee.officeLatitude,
+        officeLongitude: employee.officeLongitude,
+        allowedRadiusMeters: employee.geofenceRadiusMeters,
+      );
+
+      if (!geofenceResult.isWithinGeofence) {
+        return AttendanceActionResult(
+          success: false,
+          message: geofenceResult.errorMessage ??
+              'You are outside the permitted office attendance zone.',
+          geofenceResult: geofenceResult,
+        );
+      }
+
+      // 5. Create atomic check-out event
+      final event = AttendanceEvent(
+        clientEventId: _uuid.v4(),
+        employeeId: employee.employeeId,
+        eventType: 'check_out',
+        timestamp: DateTime.now(),
+        latitude: geofenceResult.currentLatitude,
+        longitude: geofenceResult.currentLongitude,
+        createdAt: DateTime.now(),
+      );
+
+      // 6. Submit or queue offline
+      final record = await recordEvent(event, isOnline: isOnline);
+
+      final durationMinutes = record.durationMinutes ?? 0;
+      final durationStr =
+          '${durationMinutes ~/ 60}h ${durationMinutes % 60}m';
+
+      return AttendanceActionResult(
+        success: true,
+        message: isOnline
+            ? 'Checked Out successfully! Total duration: $durationStr'
+            : 'Checked Out saved offline. Will sync when connection returns.',
+        record: record,
+        geofenceResult: geofenceResult,
+      );
+    } catch (e) {
+      return AttendanceActionResult(
+        success: false,
+        message: 'Check-Out failed: $e',
+      );
+    } finally {
+      _isProcessing = false;
+      notifyListeners();
+    }
+  }
+
   Future<AttendanceRecord> recordEvent(
     AttendanceEvent event, {
     required bool isOnline,
@@ -147,4 +317,18 @@ class AttendanceProvider extends ChangeNotifier {
     _durationTimer?.cancel();
     super.dispose();
   }
+}
+
+class AttendanceActionResult {
+  final bool success;
+  final String message;
+  final AttendanceRecord? record;
+  final GeofenceCheckResult? geofenceResult;
+
+  const AttendanceActionResult({
+    required this.success,
+    required this.message,
+    this.record,
+    this.geofenceResult,
+  });
 }
