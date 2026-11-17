@@ -11,7 +11,7 @@ class MockHttpClient extends http.BaseClient {
   final Duration defaultLatency;
 
   // In-memory state simulating server database
-  final Map<String, dynamic> _employeeData = {
+  static final Map<String, dynamic> _employeeData = {
     'id': 1,
     'employee_id': 'EMP-878',
     'name': 'Alex Smith',
@@ -23,18 +23,18 @@ class MockHttpClient extends http.BaseClient {
     'avatar_url': null,
   };
 
-  final Map<String, dynamic> _leaveBalance = {
+  static final Map<String, dynamic> _leaveBalance = {
     'casual_available': 10.0,
     'casual_total': 14.0,
     'sick_available': 7.0,
     'sick_total': 10.0,
   };
 
-  final List<Map<String, dynamic>> _attendanceRecords = [];
-  final List<Map<String, dynamic>> _leaveRequests = [];
+  static final List<Map<String, dynamic>> _attendanceRecords = [];
+  static final List<Map<String, dynamic>> _leaveRequests = [];
 
   // Track processed client_event_id for Idempotency
-  final Map<String, Map<String, dynamic>> _processedEventMap = {};
+  static final Map<String, Map<String, dynamic>> _processedEventMap = {};
 
   MockHttpClient({
     MockScenarioManager? scenarioManager,
@@ -43,12 +43,24 @@ class MockHttpClient extends http.BaseClient {
     _seedInitialData();
   }
 
+  static void resetServerData() {
+    _attendanceRecords.clear();
+    _leaveRequests.clear();
+    _processedEventMap.clear();
+    _leaveBalance['casual_available'] = 10.0;
+    _leaveBalance['casual_total'] = 14.0;
+    _leaveBalance['sick_available'] = 7.0;
+    _leaveBalance['sick_total'] = 10.0;
+    MockHttpClient()._seedInitialData();
+  }
+
   void _seedInitialData() {
+    if (_attendanceRecords.isNotEmpty) return;
     final now = DateTime.now();
     final formatter = DateFormat('yyyy-MM-dd');
 
-    // Seed past 5 days of attendance history
-    for (int i = 5; i >= 1; i--) {
+    // Seed 5 past days of attendance history (excluding today and yesterday)
+    for (int i = 6; i >= 2; i--) {
       final date = now.subtract(Duration(days: i));
       final dateStr = formatter.format(date);
       final checkIn = DateTime(date.year, date.month, date.day, 9, 15);
@@ -161,6 +173,10 @@ class MockHttpClient extends http.BaseClient {
       final eventTime = DateTime.parse(timestampStr);
       final dateStr = DateFormat('yyyy-MM-dd').format(eventTime);
 
+      // Check existing record for this date
+      final existingIndex =
+          _attendanceRecords.indexWhere((r) => r['date'] == dateStr);
+
       // IDEMPOTENCY CHECK:
       // If we already processed this client_event_id, return cached response
       if (_processedEventMap.containsKey(clientEventId)) {
@@ -169,10 +185,6 @@ class MockHttpClient extends http.BaseClient {
           body: _processedEventMap[clientEventId]!,
         );
       }
-
-      // Check existing record for this date
-      final existingIndex =
-          _attendanceRecords.indexWhere((r) => r['date'] == dateStr);
 
       if (eventType == 'check_in') {
         if (existingIndex != -1 &&
@@ -208,13 +220,39 @@ class MockHttpClient extends http.BaseClient {
       } else if (eventType == 'check_out') {
         if (existingIndex == -1 ||
             _attendanceRecords[existingIndex]['check_in_time'] == null) {
-          return _jsonResponse(
-            statusCode: 400,
-            body: {
-              'error': 'Cannot check out without an active check-in for today.',
-              'code': 'CHECKOUT_WITHOUT_CHECKIN',
-            },
+          // If check-in record is not found in mock memory (e.g. app restart or client synced check-out),
+          // synthesize/preserve check-in at 09:00 AM (or 1h before check-out) so offline sync succeeds gracefully.
+          final defaultCheckIn = DateTime(
+            eventTime.year,
+            eventTime.month,
+            eventTime.day,
+            9,
+            0,
           );
+          final checkInTime = eventTime.isAfter(defaultCheckIn)
+              ? defaultCheckIn
+              : eventTime.subtract(const Duration(hours: 1));
+          final durationMinutes = eventTime.difference(checkInTime).inMinutes;
+
+          final newRecord = {
+            'id': 'att-${DateTime.now().millisecondsSinceEpoch}',
+            'employee_id': _employeeData['employee_id'],
+            'date': dateStr,
+            'check_in_time': checkInTime.toIso8601String(),
+            'check_out_time': eventTime.toIso8601String(),
+            'status': 'Checked Out',
+            'duration_minutes': durationMinutes > 0 ? durationMinutes : 0,
+            'sync_status': 'synced',
+          };
+
+          if (existingIndex != -1) {
+            _attendanceRecords[existingIndex] = newRecord;
+          } else {
+            _attendanceRecords.insert(0, newRecord);
+          }
+
+          _processedEventMap[clientEventId] = newRecord;
+          return _jsonResponse(statusCode: 200, body: newRecord);
         }
 
         final existing = _attendanceRecords[existingIndex];

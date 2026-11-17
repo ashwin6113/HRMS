@@ -38,6 +38,12 @@ class LeaveBalance {
   double get totalAvailable => casualAvailable + sickAvailable;
   double get totalQuota => casualTotal + sickTotal;
 
+  // Convenience aliases for clarity across UI & providers
+  double get casualLeaveAvailable => casualAvailable;
+  double get casualLeaveTotal => casualTotal;
+  double get sickLeaveAvailable => sickAvailable;
+  double get sickLeaveTotal => sickTotal;
+
   LeaveBalance copyWith({
     double? casualAvailable,
     double? casualTotal,

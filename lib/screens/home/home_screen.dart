@@ -165,9 +165,9 @@ class HomeScreen extends StatelessWidget {
                       const SizedBox(height: 2),
                       Row(
                         children: [
-                          const Text(
-                            'Good Morning',
-                            style: TextStyle(
+                          Text(
+                            _getTimeBasedGreeting(),
+                            style: const TextStyle(
                               fontSize: 26,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
@@ -238,9 +238,9 @@ class HomeScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 24),
 
-                            // Section 1: Choose Services
+                            // Section 1: Todays Attendance Stats (Moved from bottom to replace services row)
                             const Text(
-                              'Please Choose Services',
+                              'Todays Attendance',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -248,12 +248,7 @@ class HomeScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 14),
-                            _buildServicesRow(
-                              context,
-                              leaveProvider,
-                              attendanceProvider,
-                              isDark,
-                            ),
+                            _buildAttendanceSummaryRow(isDark),
                             const SizedBox(height: 24),
 
                             // Section 2: Latest Attendance Records (Latest 5)
@@ -326,19 +321,6 @@ class HomeScreen extends StatelessWidget {
                               leaveProvider,
                               isDark,
                             ),
-                            const SizedBox(height: 24),
-
-                            // Section 4: Todays Attendance Stats
-                            const Text(
-                              'Todays Attendance',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: -0.2,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            _buildAttendanceSummaryRow(isDark),
 
                             // Bottom spacing for floating navigation bar
                             const SizedBox(height: 110),
@@ -354,6 +336,17 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _getTimeBasedGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return 'Good Morning';
+    } else if (hour < 17) {
+      return 'Good Afternoon';
+    } else {
+      return 'Good Evening';
+    }
   }
 
   // ================= Sync Status Badge =================
@@ -774,19 +767,21 @@ class HomeScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFF4A80F0).withValues(alpha: 0.1),
+                color: (isDark ? Colors.white : const Color(0xFF141414))
+                    .withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Row(
+              child: Row(
                 children: [
                   Icon(Icons.check_circle_rounded,
-                      color: Color(0xFF4A80F0), size: 18),
-                  SizedBox(width: 8),
+                      color: isDark ? Colors.white : const Color(0xFF141414),
+                      size: 18),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Attendance session completed for today.',
                       style: TextStyle(
-                        color: Color(0xFF4A80F0),
+                        color: isDark ? Colors.white : const Color(0xFF141414),
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1077,84 +1072,87 @@ class HomeScreen extends StatelessWidget {
     final dateRange =
         '${DateFormat('dd MMM').format(latest.startDate)} - ${DateFormat('dd MMM, yyyy').format(latest.endDate)} (${latest.daysCount} days)';
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cardBgColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Profile Avatar
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isDark
-                  ? AppColors.primaryLight.withValues(alpha: 0.3)
-                  : const Color(0xFFF0F4F8),
+    return GestureDetector(
+      onTap: () => context.go(RouterPath.calendar),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: cardBgColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
-            child: const Center(
-              child: Icon(
-                Icons.person_rounded,
-                size: 28,
-                color: Color(0xFF6B7280),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Profile Avatar
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isDark
+                    ? AppColors.primaryLight.withValues(alpha: 0.3)
+                    : const Color(0xFFF0F4F8),
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.person_rounded,
+                  size: 28,
+                  color: Color(0xFF6B7280),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
+            const SizedBox(width: 12),
 
-          // User Info & Request details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      '${latest.leaveType.toUpperCase()} LEAVE',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
+            // User Info & Request details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        '${latest.leaveType.toUpperCase()} LEAVE',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
+                      const SizedBox(width: 6),
+                      _buildStatusPill(latest.status),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    dateRange,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? Colors.white70 : const Color(0xFF141414),
                     ),
-                    const SizedBox(width: 6),
-                    _buildStatusPill(latest.status),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  dateRange,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF4A80F0),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  latest.reason,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark
-                        ? AppColors.textTertiaryDark
-                        : AppColors.textTertiaryLight,
+                  const SizedBox(height: 2),
+                  Text(
+                    latest.reason,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? AppColors.textTertiaryDark
+                          : AppColors.textTertiaryLight,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1198,8 +1196,8 @@ class HomeScreen extends StatelessWidget {
           child: _AttendanceStatCard(
             label: 'Presents',
             value: '54',
-            circleColor: const Color(0xFF4A80F0),
-            circleBgColor: const Color(0xFF4A80F0).withValues(alpha: 0.12),
+            circleColor: AppColors.success,
+            circleBgColor: AppColors.success.withValues(alpha: 0.12),
             isDark: isDark,
           ),
         ),

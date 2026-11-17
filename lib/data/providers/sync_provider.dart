@@ -14,12 +14,14 @@ class SyncProvider extends ChangeNotifier {
   bool _isSyncing = false;
   String? _lastSyncMessage;
   DateTime? _lastSyncTime;
+  late bool _lastKnownOnlineState;
 
   SyncProvider({
     Connectivity? connectivity,
     MockScenarioManager? scenarioManager,
   })  : _connectivity = connectivity ?? Connectivity(),
         _scenarioManager = scenarioManager ?? MockScenarioManager.instance {
+    _lastKnownOnlineState = isOnline;
     _initConnectivity();
     _scenarioManager.addListener(_onScenarioChanged);
   }
@@ -94,20 +96,24 @@ class SyncProvider extends ChangeNotifier {
 
   void _updateConnectivity(List<ConnectivityResult> results) {
     final hasNet = results.any((r) => r != ConnectivityResult.none);
-    final wasOffline = isOffline;
     if (_hasRealConnectivity != hasNet) {
       _hasRealConnectivity = hasNet;
+      final wasOffline = !_lastKnownOnlineState;
+      final nowOnline = isOnline;
+      _lastKnownOnlineState = nowOnline;
       notifyListeners();
-      if (wasOffline && isOnline) {
+      if (wasOffline && nowOnline) {
         _triggerAutoSync();
       }
     }
   }
 
   void _onScenarioChanged() {
-    final wasOffline = isOffline;
+    final wasOffline = !_lastKnownOnlineState;
+    final nowOnline = isOnline;
+    _lastKnownOnlineState = nowOnline;
     notifyListeners();
-    if (wasOffline && isOnline) {
+    if (wasOffline && nowOnline) {
       _triggerAutoSync();
     }
   }

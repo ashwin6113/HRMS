@@ -8,6 +8,7 @@ import 'package:hrms/common/router/router_path.dart';
 import 'package:hrms/data/providers/attendance_provider.dart';
 import 'package:hrms/data/providers/employee_provider.dart';
 import 'package:hrms/data/providers/sync_provider.dart';
+import 'package:hrms/screens/calendar/leave_application_sheet.dart';
 
 class MainShellScreen extends StatelessWidget {
   final Widget child;
@@ -29,17 +30,11 @@ class MainShellScreen extends StatelessWidget {
 
   int _calculateSelectedIndex(BuildContext context) {
     final String location = GoRouterState.of(context).uri.path;
-    if (location.startsWith(RouterPath.home)) {
-      return 0;
-    }
-    if (location.startsWith(RouterPath.search)) {
+    if (location.startsWith(RouterPath.calendar)) {
       return 1;
     }
-    if (location.startsWith(RouterPath.calendar)) {
-      return 2;
-    }
     if (location.startsWith(RouterPath.profile)) {
-      return 3;
+      return 2;
     }
     return 0;
   }
@@ -50,12 +45,9 @@ class MainShellScreen extends StatelessWidget {
         context.go(RouterPath.home);
         break;
       case 1:
-        context.go(RouterPath.search);
-        break;
-      case 2:
         context.go(RouterPath.calendar);
         break;
-      case 3:
+      case 2:
         context.go(RouterPath.profile);
         break;
     }
@@ -95,7 +87,7 @@ class MainShellScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       _QuickActionButton(
                         icon: Icons.calendar_month_outlined,
@@ -103,7 +95,7 @@ class MainShellScreen extends StatelessWidget {
                         color: AppColors.error,
                         onTap: () {
                           Navigator.pop(ctx);
-                          context.go(RouterPath.calendar);
+                          LeaveApplicationSheet.show(context);
                         },
                       ),
                       _QuickActionButton(
@@ -133,15 +125,6 @@ class MainShellScreen extends StatelessWidget {
                               ),
                             );
                           }
-                        },
-                      ),
-                      _QuickActionButton(
-                        icon: Icons.receipt_long_outlined,
-                        label: 'New Request',
-                        color: AppColors.warning,
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          context.go(RouterPath.search);
                         },
                       ),
                     ],

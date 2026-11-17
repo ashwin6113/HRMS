@@ -11,7 +11,7 @@ class AttendanceEvent {
   final int retryCount;
   final DateTime createdAt;
 
-  const AttendanceEvent({
+  AttendanceEvent({
     this.id,
     required this.clientEventId,
     required this.employeeId,
@@ -22,8 +22,8 @@ class AttendanceEvent {
     this.syncStatus = 'pending',
     this.rejectionReason,
     this.retryCount = 0,
-    required this.createdAt,
-  });
+    DateTime? createdAt,
+  }) : createdAt = createdAt ?? DateTime.now();
 
   factory AttendanceEvent.fromJson(Map<String, dynamic> json) {
     return AttendanceEvent(

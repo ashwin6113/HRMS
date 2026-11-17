@@ -132,19 +132,36 @@ class DatabaseHelper {
   // ================= Attendance Records =================
   Future<void> saveAttendanceRecords(List<AttendanceRecord> records) async {
     final db = await database;
-    final batch = db.batch();
     for (final r in records) {
-      batch.insert(
+      // Don't overwrite local pending records for the same date with stale remote records
+      final existingPending = await db.query(
         'attendance_records',
-        r.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
+        where: 'date = ? AND sync_status = ?',
+        whereArgs: [r.date, 'pending'],
       );
+      if (existingPending.isEmpty) {
+        await db.delete(
+          'attendance_records',
+          where: 'date = ?',
+          whereArgs: [r.date],
+        );
+        await db.insert(
+          'attendance_records',
+          r.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
     }
-    await batch.commit(noResult: true);
   }
 
   Future<void> upsertAttendanceRecord(AttendanceRecord record) async {
     final db = await database;
+    // Always remove existing rows for this date to ensure 1 atomic record per day
+    await db.delete(
+      'attendance_records',
+      where: 'date = ? OR id = ?',
+      whereArgs: [record.date, record.id],
+    );
     await db.insert(
       'attendance_records',
       record.toMap(),
@@ -166,20 +183,38 @@ class DatabaseHelper {
       'attendance_records',
       where: whereClause,
       whereArgs: whereArgs,
-      orderBy: 'date DESC',
+      orderBy: 'date DESC, check_out_time DESC, check_in_time DESC',
     );
 
-    return results.map((m) => AttendanceRecord.fromMap(m)).toList();
+    final List<AttendanceRecord> records = [];
+    final Set<String> seenDates = {};
+    for (final m in results) {
+      final rec = AttendanceRecord.fromMap(m);
+      if (!seenDates.contains(rec.date)) {
+        seenDates.add(rec.date);
+        records.add(rec);
+      }
+    }
+    return records;
   }
 
   Future<List<AttendanceRecord>> getLatestAttendanceRecords({int limit = 5}) async {
     final db = await database;
     final results = await db.query(
       'attendance_records',
-      orderBy: 'date DESC, check_in_time DESC',
-      limit: limit,
+      orderBy: 'date DESC, check_out_time DESC, check_in_time DESC',
     );
-    return results.map((m) => AttendanceRecord.fromMap(m)).toList();
+    final List<AttendanceRecord> records = [];
+    final Set<String> seenDates = {};
+    for (final m in results) {
+      final rec = AttendanceRecord.fromMap(m);
+      if (!seenDates.contains(rec.date)) {
+        seenDates.add(rec.date);
+        records.add(rec);
+        if (records.length >= limit) break;
+      }
+    }
+    return records;
   }
 
   Future<AttendanceRecord?> getTodayAttendanceRecord(String date) async {
@@ -188,6 +223,7 @@ class DatabaseHelper {
       'attendance_records',
       where: 'date = ?',
       whereArgs: [date],
+      orderBy: 'check_out_time DESC, check_in_time DESC',
       limit: 1,
     );
     if (results.isNotEmpty) {

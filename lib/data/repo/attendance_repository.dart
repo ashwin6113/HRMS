@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import '../../api/api.dart';
 import '../local/database_helper.dart';
@@ -152,6 +153,7 @@ class AttendanceRepository {
         }
         rejectedCount++;
       } catch (e) {
+        debugPrint('Sync failed for event ${event.clientEventId} (${event.eventType}): $e');
         // Temporary failure: increment retry count and keep in queue
         await dbHelper.incrementEventRetry(event.clientEventId);
         failedCount++;

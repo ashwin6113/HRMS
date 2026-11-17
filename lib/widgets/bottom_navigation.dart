@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import '../common/constants/constant.dart';
 
+class BottomNavPillItem {
+  final IconData icon;
+  final String label;
+
+  const BottomNavPillItem({required this.icon, required this.label});
+}
+
 class FloatingBottomNavigationBar extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
@@ -17,41 +24,58 @@ class FloatingBottomNavigationBar extends StatelessWidget {
     this.backgroundColor,
   });
 
-  static const List<IconData> defaultIcons = [
-    Icons.home_outlined,
-    Icons.people_alt_outlined,
-    Icons.calendar_month_outlined,
-    Icons.chat_bubble_outline_rounded,
+  static const List<BottomNavPillItem> defaultItems = [
+    BottomNavPillItem(icon: Icons.home_rounded, label: 'Home'),
+    BottomNavPillItem(icon: Icons.calendar_month_rounded, label: 'Calendar'),
+    BottomNavPillItem(icon: Icons.person_rounded, label: 'Profile'),
   ];
 
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    // Theme adaptive colors:
+    // Light Mode: Pill is white, active items & button are black, button icon is white.
+    // Dark Mode:  Pill is dark, active items & button are white, button icon is black.
     final pillBg = backgroundColor ??
-        (isDarkMode ? AppColors.cardDark : Colors.white);
-    final effectiveActiveColor = activeColor ?? const Color(0xFF6C5CE7);
+        (isDarkMode ? const Color(0xFF1E1E1E) : Colors.white);
+
+    final effectiveActiveColor = activeColor ??
+        (isDarkMode ? Colors.white : const Color(0xFF141414));
+
+    final buttonBgColor =
+        isDarkMode ? Colors.white : const Color(0xFF141414);
+
+    final buttonIconColor =
+        isDarkMode ? const Color(0xFF141414) : Colors.white;
+
     final unselectedColor =
-        isDarkMode ? AppColors.textTertiaryDark : const Color(0xFF9E9E9E);
+        isDarkMode ? const Color(0xFF71717A) : const Color(0xFF8E8E93);
 
     return Container(
       color: Colors.transparent,
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
           child: Row(
             children: [
-              // 1. Separate White Pill Navigation Bar on the left
+              // 1. Separate Pill Navigation Bar with Icons & Text Labels
               Expanded(
                 child: Container(
-                  height: 60,
+                  height: 64,
                   decoration: BoxDecoration(
                     color: pillBg,
-                    borderRadius: BorderRadius.circular(30),
+                    borderRadius: BorderRadius.circular(32),
+                    border: Border.all(
+                      color: isDarkMode
+                          ? Colors.white.withValues(alpha: 0.1)
+                          : Colors.black.withValues(alpha: 0.05),
+                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(
-                          alpha: isDarkMode ? 0.3 : 0.08,
+                          alpha: isDarkMode ? 0.4 : 0.08,
                         ),
                         blurRadius: 16,
                         offset: const Offset(0, 4),
@@ -60,10 +84,10 @@ class FloatingBottomNavigationBar extends StatelessWidget {
                     ],
                   ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: List.generate(defaultIcons.length, (index) {
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: List.generate(defaultItems.length, (index) {
                       final isSelected = index == currentIndex;
-                      final icon = defaultIcons[index];
+                      final item = defaultItems[index];
 
                       return Expanded(
                         child: GestureDetector(
@@ -74,21 +98,24 @@ class FloatingBottomNavigationBar extends StatelessWidget {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                  icon,
-                                  size: 26,
+                                  item.icon,
+                                  size: 22,
                                   color: isSelected
                                       ? effectiveActiveColor
                                       : unselectedColor,
                                 ),
-                                const SizedBox(height: 4),
-                                Container(
-                                  width: 4,
-                                  height: 4,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
+                                const SizedBox(height: 3),
+                                Text(
+                                  item.label,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.w500,
                                     color: isSelected
                                         ? effectiveActiveColor
-                                        : Colors.transparent,
+                                        : unselectedColor,
+                                    letterSpacing: -0.2,
                                   ),
                                 ),
                               ],
@@ -101,29 +128,30 @@ class FloatingBottomNavigationBar extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
 
               // 2. Separate Floating Action Button (+) on the right
               GestureDetector(
                 onTap: onAddPressed,
                 child: Container(
-                  width: 56,
-                  height: 56,
+                  width: 58,
+                  height: 58,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: effectiveActiveColor,
+                    color: buttonBgColor,
                     boxShadow: [
                       BoxShadow(
-                        color: effectiveActiveColor.withValues(alpha: 0.4),
-                        blurRadius: 12,
+                        color: (isDarkMode ? Colors.white : Colors.black)
+                            .withValues(alpha: isDarkMode ? 0.2 : 0.25),
+                        blurRadius: 14,
                         offset: const Offset(0, 4),
                       ),
                     ],
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Icon(
                       Icons.add,
-                      color: Colors.white,
+                      color: buttonIconColor,
                       size: 28,
                     ),
                   ),

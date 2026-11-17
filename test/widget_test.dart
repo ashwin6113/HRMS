@@ -1,8 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:hrms/common/constants/constant.dart';
 import 'package:hrms/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   testWidgets('HRMS smoke test', (WidgetTester tester) async {
@@ -10,11 +9,12 @@ void main() {
     sharedPreferences = await SharedPreferences.getInstance();
 
     await tester.pumpWidget(const MyApp());
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('Good Morning'), findsOneWidget);
-    expect(find.text('Please Choose Services'), findsOneWidget);
+    expect(find.textContaining('Good '), findsOneWidget);
+    expect(find.text('Presents'), findsOneWidget);
     expect(find.text('Recent Leave Application'), findsOneWidget);
-    expect(find.text('Todays Attendance'), findsOneWidget);
+    expect(find.text('Total Attendance'), findsOneWidget);
   });
 }

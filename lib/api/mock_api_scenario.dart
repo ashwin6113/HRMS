@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'mock_http_client.dart';
 
 /// Repeatable mock scenarios as mandated by the assignment specification.
 enum MockApiScenario {
@@ -49,6 +50,9 @@ class MockScenarioManager extends ChangeNotifier {
   void resetToSuccess() {
     _currentScenario = MockApiScenario.success;
     _simulateOffline = false;
+    MockHttpClient.resetServerData();
     notifyListeners();
   }
+
+  void reset() => resetToSuccess();
 }
